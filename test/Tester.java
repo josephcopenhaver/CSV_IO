@@ -50,7 +50,7 @@ public class Tester
 				new String[]{"\"Hello", "World"}
 			},
 			new String[][]{
-					new String[]{"Hello\r", "\nWorld"}
+				new String[]{"Hello\r", "\nWorld"}
 			},
 			new String[][]{
 				new String[]{"Hello\n", "\rWorld"}
