@@ -54,6 +54,13 @@ public class Tester
 			},
 			new String[][]{
 				new String[]{"Hello\n", "\rWorld"}
+			},
+			new String[][]{
+				new String[]{""}
+			},
+			new String[][]{
+				new String[]{"RAWR"},
+				new String[]{""}
 			}
 		};
 		for (String[][] rowData : testSet)
@@ -64,11 +71,13 @@ public class Tester
 			{
 				FileWriter w = newFileWriter(tempFile);
 				CSVWriter cw = new CSVWriter(w);
+				String[] lastRow = null;
 				for (String[] row : rowData)
 				{
 					cw.writeRow(row);
+					lastRow = row;
 				}
-				if (endStrPadding != null)
+				if (endStrPadding != null && (lastRow.length > 1 || (lastRow.length == 1 && lastRow[0] != null && !lastRow[0].equals(""))))
 				{
 					cw.write(endStrPadding);
 				}
@@ -82,14 +91,15 @@ public class Tester
 				CSVReader cr = new CSVReader(r, false, 0);
 				String[] row;
 				int rowCount = 0;
-				if (testNum == 3 && subTestNum == 1)
-				{
-					rowCount = 0;
-				}
 				while ((row = cr.nextRow()) != null)
 				{
 					rowCount++;
+					assert_(rowCount <= rowData.length);
 					assert_(row.length == rowData[rowCount-1].length);
+					for (int i=0; i<row.length; i++)
+					{
+						assert_(row[i].equals(rowData[rowCount-1][i]));
+					}
 				}
 				assert_(rowCount == rowData.length);
 				cr.close();
@@ -160,6 +170,7 @@ public class Tester
 	}
 
 	private void releaseResources() throws IOException {
+		endStrPadding = null;
 		IOException fe = null;
 		for (FileReader reader : fileReaders)
 		{

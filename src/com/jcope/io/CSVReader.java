@@ -12,9 +12,10 @@ public class CSVReader extends BufferedReader
 	public static class MalformedCSVException extends Exception
 	{
 		/**
-		 * DEFAULT serialVersionUID
+		 * Generated serialVersionUID
 		 */
-		private static final long serialVersionUID = 1L;
+		private static final long serialVersionUID = 3371632447430259689L;
+		
 		private String msg;
 		
 		@Override
@@ -33,9 +34,10 @@ public class CSVReader extends BufferedReader
 	public static class InvalidConfigException extends Exception
 	{
 		/**
-		 * DEFAULT serialVersionUID
+		 * Generated serialVersionUID
 		 */
-		private static final long serialVersionUID = 1L;
+		private static final long serialVersionUID = -4400346896764490501L;
+		
 		private String msg;
 		
 		@Override
@@ -57,12 +59,13 @@ public class CSVReader extends BufferedReader
 		IN_QUOTED_FIELD,
 		IN_QUOTED_FIELD_MAYBE_END
 	};
+	
 	private PARSE_STATE state = PARSE_STATE.FIELD_START;
 	private final Reader[] readerPtr = new Reader[]{null};
 	private String[] columnNames = null;
 	private boolean expectColumnNames;
 	private boolean handledColumnNames = false;
-	private char[] rBuff = new char[]{(char)0};
+	private char[] rBuff = new char[]{'\n'};
 	private StringBuffer sb = new StringBuffer();
 	private int colIdx;
 	private int expectNumColumns;
@@ -71,6 +74,7 @@ public class CSVReader extends BufferedReader
 	private boolean lastCharHandled = true;
 	private boolean atEOF = false;
 	private boolean open = true;
+	private boolean lastCharWasEOL = true;
 	
 	private String getErrStrHeader()
 	{
@@ -101,41 +105,69 @@ public class CSVReader extends BufferedReader
 		}
 		boolean isCR;
 		char c;
-		int nr;
-		ArrayList<String> rvalBuff = (expectNumColumns > 0) ? (new ArrayList<String>(expectNumColumns)) : (new ArrayList<String>());
+		int nr = 0;
+		ArrayList<String> rvalBuff;
+		
 		colIdx = 0;
+		rvalBuff = (expectNumColumns > 0) ? (new ArrayList<String>(expectNumColumns)) : (new ArrayList<String>());
 		
 		END_OF_ROW:
 		while ((!lastCharHandled) || (nr = read(rBuff)) > 0)
 		{
-			lastCharHandled = true;
-			c = rBuff[0];
-			isCR = (c == '\r');
-			if (isCR || (c == '\n'))
+			while ((isCR = ((c = rBuff[0]) == '\r')) || (c == '\n'))
 			{
+				boolean _lastCharWasEOL = lastCharWasEOL;
+				lastCharWasEOL = true;
 				lineNumber++;
-				if ((nr = read(rBuff)) > 0)
+				if (isCR)
 				{
-					c = rBuff[0];
+					if ((nr = read(rBuff)) > 0)
+					{
+						c = rBuff[0];
+						lastCharHandled = (c == '\n');
+					}
+					else
+					{
+						lastCharHandled = true;
+						atEOF = true;
+					}
 				}
 				else
 				{
-					atEOF = true;
+					lastCharHandled = true;
 				}
 				switch (state)
 				{
 				case FIELD_START:
-					pushSB(rvalBuff);
+					if (!isCR)
+					{
+						lastCharHandled = false;
+						if ((nr = read(rBuff)) <= 0)
+						{
+							atEOF = true;
+						}
+					}
+					if (rvalBuff.size() > 0 || !atEOF || _lastCharWasEOL)
+					{
+						pushSB(rvalBuff);
+					}
 					break END_OF_ROW;
 				case IN_FIELD:
 					pushSB(rvalBuff);
 					state = PARSE_STATE.FIELD_START;
 					break END_OF_ROW;
 				case IN_QUOTED_FIELD:
-					sb.append(isCR ? '\r' : '\n');
-					if (isCR && !atEOF && c == '\n')
+					if (isCR)
 					{
-						sb.append(c);
+						sb.append('\r');
+						if (c == '\n')
+						{
+							sb.append(c);
+						}
+					}
+					else
+					{
+						sb.append('\n');
 					}
 					break;
 				case IN_QUOTED_FIELD_MAYBE_END:
@@ -145,19 +177,25 @@ public class CSVReader extends BufferedReader
 				}
 				if (atEOF)
 				{
-					break;
+					break END_OF_ROW;
 				}
-				else if (!isCR || c == '\r')
+				else if (!lastCharHandled && (c == '\r' || c == '\n'))
 				{
-					lastCharHandled = false;
 					continue;
 				}
-				else if (c == '\n')
+				else if (lastCharHandled)
 				{
-					// handled
-					continue;
+					if ((nr = read(rBuff)) > 0)
+					{
+						continue;
+					}
+					atEOF = true;
+					break END_OF_ROW;
 				}
+				break;
 			}
+			lastCharHandled = true;
+			lastCharWasEOL = false;
 			switch (state)
 			{
 			case FIELD_START:
@@ -236,8 +274,6 @@ public class CSVReader extends BufferedReader
 				}
 				break;
 			case IN_FIELD:
-				pushSB(rvalBuff);
-				break;
 			case IN_QUOTED_FIELD_MAYBE_END:
 				pushSB(rvalBuff);
 				break;

@@ -13,6 +13,7 @@ public class CSVWriter extends BufferedWriter
 	public static final Pattern regex_hasMultipleLinesOrComma = Pattern.compile("[,\\r\\n]");
 	private final Writer[] writerPtr = new Writer[]{null};
 	private boolean isNotFirstRow = false;
+	private Boolean lastRowEmpty = Boolean.FALSE;
 	
 	public static final String toCSV(String str)
 	{
@@ -39,7 +40,7 @@ public class CSVWriter extends BufferedWriter
 			if (doubleQuoteIdx > -1)
 			{
 				// need to escape DQ's
-				int maxIdx = str.length() - 1;
+				int length = str.length();
 				int lastDoubleQuoteIdx = -1;
 				
 				do
@@ -47,16 +48,16 @@ public class CSVWriter extends BufferedWriter
 					if (doubleQuoteIdx - 1 > lastDoubleQuoteIdx + 1)
 					{
 						// a substring can be written
-						write(str.substring(lastDoubleQuoteIdx + 1, doubleQuoteIdx - 1));
+						write(str.substring(lastDoubleQuoteIdx + 1, doubleQuoteIdx));
 					}
 					write("\"\"");
 					lastDoubleQuoteIdx = doubleQuoteIdx;
 					doubleQuoteIdx = str.indexOf('"', lastDoubleQuoteIdx + 1);
 				} while (doubleQuoteIdx > -1);
-				if (doubleQuoteIdx == -1 && lastDoubleQuoteIdx != maxIdx)
+				if (doubleQuoteIdx == -1 && lastDoubleQuoteIdx != (length - 1))
 				{
 					// a substring can be written
-					write(str.substring(lastDoubleQuoteIdx + 1, maxIdx));
+					write(str.substring(lastDoubleQuoteIdx + 1, length));
 				}
 			}
 			else
@@ -96,6 +97,16 @@ public class CSVWriter extends BufferedWriter
 		{
 			isNotFirstRow = true;
 		}
+		
+		String row0;
+		if (row.length == 0 || (row.length == 1 && ((row0 = row[0]) == null || row0.equals(""))))
+		{
+			lastRowEmpty = Boolean.TRUE;
+			return;
+		}
+		row0 = null;
+		lastRowEmpty = Boolean.FALSE;
+		
 		for (String str : row)
 		{
 			if (isNotFirstCol)
@@ -117,18 +128,28 @@ public class CSVWriter extends BufferedWriter
 	public void close() throws IOException
 	{
 		Writer writer = null;
-		synchronized (writerPtr)
-		{
+		boolean lastRowEmpty;
+		synchronized (writerPtr) {synchronized(this.lastRowEmpty){
 			writer = writerPtr[0];
 			writerPtr[0] = null;
-		}
+			lastRowEmpty = this.lastRowEmpty;
+		}}
 		if (writer == null)
 		{
 			return;
 		}
 		try
 		{
-			super.close();
+			try
+			{
+				if (lastRowEmpty)
+				{
+					write(END_OF_ROW);
+				}
+			}
+			finally {
+				super.close();
+			}
 		}
 		finally {
 			try {
