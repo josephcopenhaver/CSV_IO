@@ -139,19 +139,38 @@ public class CSVReader extends BufferedReader
 				switch (state)
 				{
 				case FIELD_START:
-					if (!isCR)
 					{
-						lastCharHandled = false;
-						if ((nr = read(rBuff)) <= 0)
+						boolean doPush = true;
+						do
 						{
-							atEOF = true;
+							if (_lastCharWasEOL || rvalBuff.size() > 0)
+							{
+								break;
+							}
+							if (!isCR)
+							{
+								lastCharHandled = false;
+								if ((nr = read(rBuff)) <= 0)
+								{
+									atEOF = true;
+								}
+								else
+								{
+									break;
+								}
+							}
+							if (!atEOF)
+							{
+								break;
+							}
+							doPush = false;
+						} while (false);
+						if (doPush)
+						{
+							pushSB(rvalBuff);
 						}
+						break END_OF_ROW;
 					}
-					if (rvalBuff.size() > 0 || !atEOF || _lastCharWasEOL)
-					{
-						pushSB(rvalBuff);
-					}
-					break END_OF_ROW;
 				case IN_FIELD:
 					pushSB(rvalBuff);
 					state = PARSE_STATE.FIELD_START;
