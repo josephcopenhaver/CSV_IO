@@ -10,14 +10,15 @@ import java.util.regex.Pattern;
 public class CSVWriter extends BufferedWriter
 {
 	public static final String END_OF_ROW = "\n";
-	public static final Pattern regex_hasMultiLines = Pattern.compile("[\\r\\n]");
+	public static final Pattern regex_hasMultipleLinesOrComma = Pattern.compile("[,\\r\\n]");
 	private final Writer[] writerPtr = new Writer[]{null};
+	private boolean isNotFirstRow = false;
 	
 	public static final String toCSV(String str)
 	{
 		boolean needsEscape = (str.indexOf('"') > -1);
 		String rval;
-		rval = (needsEscape || regex_hasMultiLines.matcher(str).find()) ? String.format("\"%s\"", (needsEscape ? str.replaceAll("\"", "\"\"") : str)) : str;
+		rval = (needsEscape || regex_hasMultipleLinesOrComma.matcher(str).find()) ? String.format("\"%s\"", (needsEscape ? str.replaceAll("\"", "\"\"") : str)) : str;
 		return rval;
 	}
 	
@@ -25,7 +26,7 @@ public class CSVWriter extends BufferedWriter
 	{
 		int doubleQuoteIdx = str.indexOf('"');
 		
-		if (!(doubleQuoteIdx > -1 || regex_hasMultiLines.matcher(str).find()))
+		if (!(doubleQuoteIdx > -1 || regex_hasMultipleLinesOrComma.matcher(str).find()))
 		{
 			// data can be directly represented as a row
 			write(str);
@@ -84,15 +85,19 @@ public class CSVWriter extends BufferedWriter
 		return new CSVWriter(fileWriter);
 	}
 	
-	public void writeRow(String[] rows) throws IOException
+	public void writeRow(String[] row) throws IOException
 	{
 		boolean isNotFirstCol = false;
-		for (String str : rows)
+		if (isNotFirstRow)
 		{
-			if (str != null && !str.equals(""))
-			{
-				writeField(str);
-			}
+			write(END_OF_ROW);
+		}
+		else
+		{
+			isNotFirstRow = true;
+		}
+		for (String str : row)
+		{
 			if (isNotFirstCol)
 			{
 				write(',');
@@ -101,7 +106,36 @@ public class CSVWriter extends BufferedWriter
 			{
 				isNotFirstCol = true;
 			}
+			if (str != null && !str.equals(""))
+			{
+				writeField(str);
+			}
 		}
-		write(END_OF_ROW);
+	}
+	
+	@Override
+	public void close() throws IOException
+	{
+		Writer writer = null;
+		synchronized (writerPtr)
+		{
+			writer = writerPtr[0];
+			writerPtr[0] = null;
+		}
+		if (writer == null)
+		{
+			return;
+		}
+		try
+		{
+			super.close();
+		}
+		finally {
+			try {
+				writer.close();
+			} catch (IOException e) {
+				// Do Nothing
+			}
+		}
 	}
 }
