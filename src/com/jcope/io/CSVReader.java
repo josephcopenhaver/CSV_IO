@@ -107,6 +107,7 @@ public class CSVReader extends BufferedReader
 		char c;
 		int nr = 0;
 		ArrayList<String> rvalBuff;
+		int rvalSize;
 		
 		colIdx = 0;
 		rvalBuff = (expectNumColumns > 0) ? (new ArrayList<String>(expectNumColumns)) : (new ArrayList<String>());
@@ -308,19 +309,9 @@ public class CSVReader extends BufferedReader
 		}
 		
 		rowNumber++;
+		rvalSize = rvalBuff.size();
 		
-		int rvalSize = rvalBuff.size();
-		if (rvalSize == 0 && atEOF)
-		{
-			return null;
-		}
-		
-		String[] rval = new String[rvalSize];
-		for (int i=0; i<rval.length; i++)
-		{
-			rval[i] = rvalBuff.get(i);
-		}
-		return rval;
+		return (rvalSize == 0 && atEOF) ? null : rvalBuff.toArray(new String[rvalSize]);
 	}
 	
 	public CSVReader(Reader reader, boolean expectColumnNames, int expectNumColumns)
